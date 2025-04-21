@@ -28,6 +28,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client"; // Import Supabase client
 
 // Define the form data type
 type FormData = {
@@ -50,7 +51,6 @@ type FormData = {
   otherGoals: string;
   timeAvailability: "15min" | "30min" | "45min" | "60min" | "90min";
   sleepQuality: "poor" | "fair" | "good" | "excellent";
-  waterIntake: "low" | "moderate" | "high";
   mealPrepTime: "15min" | "30min" | "45min" | "60min";
   cookingSkill: "beginner" | "intermediate" | "advanced";
   allergies: string[];
@@ -78,7 +78,6 @@ const initialFormData: FormData = {
   otherGoals: "",
   timeAvailability: "30min",
   sleepQuality: "good",
-  waterIntake: "moderate",
   mealPrepTime: "30min",
   cookingSkill: "intermediate",
   allergies: [],
@@ -99,7 +98,6 @@ const questionTitles = [
   "Fitness Goals",
   "Time Availability",
   "Sleep Quality",
-  "Water Intake",
   "Meal Prep Time",
   "Food Allergies",
 ];
@@ -116,7 +114,7 @@ const questionGroups = [
   },
   {
     title: "Lifestyle Habits",
-    questions: [12, 13, 14, 15], // Sleep quality, water intake, meal prep time, food allergies
+    questions: [12, 13, 14], // Sleep quality, meal prep time, food allergies
   },
 ];
 
@@ -127,8 +125,12 @@ export default function QuestionnairePage() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [progress, setProgress] = useState(0);
   const [showGroupSummary, setShowGroupSummary] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Add submitting state
+  const [submitError, setSubmitError] = useState<string | null>(null); // Add error state
 
-  const totalSteps = 15; // Updated total steps after removing questions
+  const supabase = createClient(); // Initialize Supabase client
+
+  const totalSteps = 14; // Updated total steps
 
   // Update progress when step changes
   const updateProgress = (step: number) => {
@@ -142,14 +144,12 @@ export default function QuestionnairePage() {
       setCurrentStep(nextStep);
       updateProgress(nextStep);
       
-      // Check if we've completed a group
       const currentGroupQuestions = questionGroups[currentGroup].questions;
       if (currentGroupQuestions.includes(nextStep) === false) {
         setShowGroupSummary(true);
       }
     } else {
-      // Submit form
-      handleSubmit();
+      handleSubmit(); // Call submit when on the last step
     }
   };
 
@@ -169,12 +169,71 @@ export default function QuestionnairePage() {
     if (e) {
       e.preventDefault();
     }
-    
-    // Here you would typically send the form data to your backend
-    console.log("Form submitted:", formData);
-    
-    // Redirect to the summary page instead of dashboard
-    router.push("/questionnaire/summary");
+    if (isSubmitting) return; // Prevent multiple submissions
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+    console.log("Submitting form data:", formData);
+
+    try {
+      // 1. Get the current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error(userError?.message || "Could not get user information.");
+      }
+
+      // 2. Map form data to database column names (snake_case)
+      const profileData = {
+        id: user.id, // Primary key from auth user
+        wearable_devices: formData.wearableDevices,
+        other_wearable: formData.otherWearable,
+        current_weight: formData.currentWeight,
+        current_weight_unit: formData.currentWeightUnit,
+        goal_weight: formData.goalWeight,
+        goal_weight_unit: formData.goalWeightUnit,
+        height: formData.height,
+        height_unit: formData.heightUnit,
+        age: formData.age,
+        gender: formData.gender,
+        medical_conditions: formData.medicalConditions,
+        other_medical: formData.otherMedical,
+        activity_level: formData.activityLevel,
+        dietary_preferences: formData.dietaryPreferences,
+        other_dietary: formData.otherDietary,
+        fitness_goals: formData.fitnessGoals,
+        other_goals: formData.otherGoals,
+        time_availability: formData.timeAvailability,
+        sleep_quality: formData.sleepQuality,
+        meal_prep_time: formData.mealPrepTime,
+        cooking_skill: formData.cookingSkill,
+        allergies: formData.allergies,
+        other_allergies: formData.otherAllergies,
+        updated_at: new Date().toISOString(), // Set updated_at timestamp
+      };
+
+      // 3. Upsert data into the profiles table
+      const { error: upsertError } = await supabase
+        .from('profiles')
+        .upsert(profileData, {
+          onConflict: 'id', // Specify the conflict target
+        });
+
+      if (upsertError) {
+        console.error("Supabase upsert error:", upsertError);
+        throw new Error(upsertError.message || "Failed to save profile data.");
+      }
+
+      console.log("Profile data saved successfully for user:", user.id);
+
+      // 4. Redirect to the summary page on success
+      router.push("/questionnaire/summary");
+
+    } catch (error: any) {
+      console.error("Error submitting questionnaire:", error);
+      setSubmitError(error.message || "An unexpected error occurred.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Handle input changes
@@ -293,15 +352,7 @@ export default function QuestionnairePage() {
                 };
                 value = sleepLabels[formData.sleepQuality];
                 break;
-              case 13: // Water intake
-                const waterLabels = {
-                  low: "Low",
-                  moderate: "Moderate",
-                  high: "High"
-                };
-                value = waterLabels[formData.waterIntake];
-                break;
-              case 14: // Meal prep time
+              case 13: // Meal prep time
                 const prepLabels = {
                   "15min": "15 minutes",
                   "30min": "30 minutes",
@@ -310,7 +361,7 @@ export default function QuestionnairePage() {
                 };
                 value = prepLabels[formData.mealPrepTime];
                 break;
-              case 15: // Food allergies
+              case 14: // Food allergies
                 value = formData.allergies.length > 0 
                   ? formData.allergies.join(", ") 
                   : "None";
@@ -862,34 +913,6 @@ export default function QuestionnairePage() {
         return (
           <div className={baseClasses}>
             <h2 className="text-4xl font-bold text-center mb-4">
-              How much water do you drink daily?
-            </h2>
-
-            <RadioGroup
-              value={formData.waterIntake}
-              onValueChange={(value) => handleInputChange("waterIntake", value)}
-              className="flex flex-col space-y-4"
-            >
-              {[
-                { value: "low", label: "Less than 4 glasses" },
-                { value: "moderate", label: "4-8 glasses" },
-                { value: "high", label: "More than 8 glasses" },
-              ].map((option) => (
-                <div key={option.value} className="flex items-center space-x-3">
-                  <RadioGroupItem value={option.value} id={option.value} className="h-5 w-5" />
-                  <Label htmlFor={option.value} className="text-lg">
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-        );
-
-      case 14:
-        return (
-          <div className={baseClasses}>
-            <h2 className="text-4xl font-bold text-center mb-4">
               How much time can you spend on meal prep?
             </h2>
 
@@ -915,7 +938,7 @@ export default function QuestionnairePage() {
           </div>
         );
 
-      case 15:
+      case 14:
         return (
           <div className={baseClasses}>
             <h2 className="text-4xl font-bold text-center mb-4">
@@ -1019,11 +1042,18 @@ export default function QuestionnairePage() {
         <Card className="p-6 md:p-8 shadow-lg min-h-[600px] flex flex-col">
           <div className="flex-1">{renderStep()}</div>
 
+          {/* Display submit error message */}
+          {submitError && (
+            <div className="mt-4 text-center text-red-600 font-medium">
+              Error: {submitError}
+            </div>
+          )}
+
           <div className="mt-8 flex justify-between pt-6 border-t">
             <Button
               variant="outline"
               onClick={handlePrevious}
-              disabled={currentStep === 1 && !showGroupSummary}
+              disabled={(currentStep === 1 && !showGroupSummary) || isSubmitting} // Disable if submitting
               className={cn(currentStep === 1 && !showGroupSummary && "invisible", "text-lg py-3 px-6")}
             >
               <ArrowLeft className="mr-2 h-5 w-5" />
@@ -1033,9 +1063,10 @@ export default function QuestionnairePage() {
             {!showGroupSummary && (
               <Button
                 onClick={handleNext}
+                disabled={isSubmitting} // Disable if submitting
                 className="bg-teal-600 hover:bg-teal-700 text-lg py-3 px-6"
               >
-                {currentStep === totalSteps ? (
+                {isSubmitting ? 'Submitting...' : (currentStep === totalSteps ? (
                   <>
                     Complete
                     <Check className="ml-2 h-5 w-5" />
@@ -1045,7 +1076,7 @@ export default function QuestionnairePage() {
                     Next
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </>
-                )}
+                ))}
               </Button>
             )}
           </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Edit2, Save, Utensils } from "lucide-react";
+import { ArrowLeft, Check, Edit2, Save, Utensils, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 
 // Define the summary data type
 type SummaryData = {
@@ -47,6 +48,10 @@ export default function SummaryPage() {
   const [editingConstraint, setEditingConstraint] = useState<number | null>(null);
   const [tempValue, setTempValue] = useState<string>("");
   const [tempConstraint, setTempConstraint] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  const supabase = createClient();
 
   // Handle editing a field
   const handleEdit = (field: string, value: string) => {
@@ -103,12 +108,54 @@ export default function SummaryPage() {
   };
 
   // Handle creating plan and proceeding to dashboard
-  const handleCreateMealPlan = () => {
-    // Here you would save the summary data to your backend
-    console.log("Creating meal plan with data:", summaryData);
-    
-    // Redirect to dashboard
-    router.push("/dashboard");
+  const handleCreateMealPlan = async () => {
+    if (isGenerating) return;
+
+    setIsGenerating(true);
+    setGenerateError(null);
+    console.log("Attempting to generate meal plan with data:", summaryData);
+
+    try {
+      // 1. Get User ID
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error(userError?.message || "Could not get user information.");
+      }
+
+      // 2. Get API URL from environment
+      const apiUrl = process.env.NEXT_PUBLIC_MEAL_PLAN_API_URL;
+      if (!apiUrl) {
+        throw new Error("Meal plan generator API URL is not configured.");
+      }
+
+      // 3. Call the FastAPI endpoint
+      console.log(`Calling API: ${apiUrl}/generate-meal-plan for user: ${user.id}`);
+      const response = await fetch(`${apiUrl}/generate-meal-plan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ user_id: user.id }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error("API Error Response:", result);
+        throw new Error(result.detail || `API request failed with status ${response.status}`);
+      }
+
+      console.log("Meal plan generated successfully:", result);
+
+      // 4. Redirect to dashboard on success
+      router.push("/dashboard");
+
+    } catch (error: any) {
+      console.error("Error creating meal plan:", error);
+      setGenerateError(error.message || "An unexpected error occurred.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -350,14 +397,30 @@ export default function SummaryPage() {
                 </p>
               </div>
               
+              {generateError && (
+                <div className="mb-4 text-center text-red-600 font-medium">
+                  Error generating meal plan: {generateError}
+                </div>
+              )}
+              
               <div className="flex justify-center">
                 <Button 
                   size="lg" 
                   className="bg-teal-600 hover:bg-teal-700 text-lg py-6 px-8"
                   onClick={handleCreateMealPlan}
+                  disabled={isGenerating}
                 >
-                  Create Meal Plan
-                  <Utensils className="ml-2 h-5 w-5" />
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      Create Meal Plan
+                      <Utensils className="ml-2 h-5 w-5" />
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

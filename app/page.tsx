@@ -10,7 +10,7 @@ export default function LandingPage() {
   const router = useRouter()
   
   const handleStartJourney = () => {
-    router.push("/questionnaire")
+    router.push("/auth")
   }
   
   return (

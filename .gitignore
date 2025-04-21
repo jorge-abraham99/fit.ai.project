@@ -3,6 +3,9 @@
 /.pnp
 .pnp.js
 
+# cursor
+cursor/mcp.json
+
 # testing
 /coverage
 

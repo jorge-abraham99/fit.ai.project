@@ -64,7 +64,8 @@ app = FastAPI(
 origins = [
     "http://localhost:3000", # Default Next.js dev port
     "http://127.0.0.1:3000",
-    # Add your deployed frontend URL here if applicable
+    "https://fit-ai-project.vercel.app", # Add your Vercel domain (use https)
+    # Add any other custom domains if applicable
 ]
 
 app.add_middleware(

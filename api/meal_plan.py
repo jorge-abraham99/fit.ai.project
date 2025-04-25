@@ -1,39 +1,19 @@
 import os
 import re
 import json
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends
 from pydantic import BaseModel, Field, ValidationError
 from typing import List, Dict, Any
 from supabase import create_client, Client
 import google.generativeai as genai
 from fastapi.middleware.cors import CORSMiddleware
-from datetime import date # Import date
+from datetime import date
 
-# Determine the absolute path to the directory containing main.py
-script_dir = os.path.dirname(__file__)
-# Construct the path to the .env file in the PARENT directory
-project_root = os.path.dirname(script_dir)
-dotenv_file_path = os.path.join(project_root, '.env.local')
-
-# Load environment variables explicitly from the calculated path
-print(f"DEBUG: Attempting to load .env file from project root: {dotenv_file_path}")
-found_dotenv = load_dotenv(dotenv_path=dotenv_file_path)
-print(f"DEBUG: dotenv file found: {found_dotenv}") # Check if load_dotenv found the file
-
-# ---- START DEBUGGING ----
-loaded_google_key = os.environ.get("GOOGLE_API_KEY")
-print(f"DEBUG: Value loaded for GOOGLE_API_KEY: '{loaded_google_key}'") # Print the loaded value
-# ---- END DEBUGGING ----
-
-# --- Configuration ---
-# Read the URL prefixed with NEXT_PUBLIC_ as defined in .env.local
+# --- Configuration --- Rely on Vercel Environment Variables ---
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-# Read the specific Service Role Key (NOT prefixed with NEXT_PUBLIC_)
 SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
-
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-GEMINI_MODEL_NAME = "gemini-1.5-flash-latest" # Use the latest 1.5 Flash model
+GEMINI_MODEL_NAME = "gemini-1.5-flash-latest"
 
 # --- Input/Output Models ---
 class GenerateMealPlanRequest(BaseModel):
@@ -56,24 +36,24 @@ class WeeklyMealPlan(BaseModel):
 # --- FastAPI App ---
 app = FastAPI(
     title="Meal Plan Generator API",
-    description="Generates a meal plan using Gemini based on user profile data from Supabase."
+    description="Generates a meal plan using Gemini based on user profile data from Supabase.",
+    # Disable docs in production if desired
+    # docs_url=None, 
+    # redoc_url=None 
 )
 
 # --- CORS Configuration ---
-# Define allowed origins (adjust if your frontend runs on a different port)
 origins = [
-    "http://localhost:3000", # Default Next.js dev port
+    "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://fit-ai-project.vercel.app", # Add your Vercel domain (use https)
-    # Add any other custom domains if applicable
+    "https://fit-ai-project.vercel.app",
 ]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins, # List of origins allowed
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"], # Allow all methods (GET, POST, etc.)
-    allow_headers=["*"], # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # --- Supabase Client Dependency ---
@@ -91,11 +71,11 @@ def get_supabase_client() -> Client:
 # --- Google AI Client Setup ---
 def configure_google_ai():
     if not GOOGLE_API_KEY:
-        print(f"ERROR: Google API Key check failed. Value is '{GOOGLE_API_KEY}'") # Added detail to error check
+        print(f"ERROR: Google API Key check failed. Value is '{GOOGLE_API_KEY}'")
         raise HTTPException(status_code=500, detail="Google API Key not configured.")
     try:
         genai.configure(api_key=GOOGLE_API_KEY)
-        print("DEBUG: Google AI configured successfully.") # Success message
+        print("DEBUG: Google AI configured successfully.")
     except Exception as e:
         print(f"Error configuring Google AI: {e}")
         raise HTTPException(status_code=500, detail="Could not configure Google AI.")
@@ -129,17 +109,18 @@ def format_prompt(profile_data: Dict[str, Any]) -> str:
         f"Allergies: {', '.join(profile_data.get('allergies', ['None']))}\n"
     )
     
-    # Check if the 'additional_constraints' field exists and has a value (it's already a string)
     additional_constraints_text = profile_data.get('additional_constraints')
     if additional_constraints_text:
-        # Append the string directly to the details
         details += f"Additional Constraints: {additional_constraints_text}\n"
 
     return base_prompt + details
 
 # --- API Endpoint ---
-@app.post("/generate-meal-plan", status_code=201)
-async def generate_meal_plan(
+# Vercel maps requests to /api/meal_plan to this file.
+# The function name doesn't matter to Vercel, but the file name does.
+# The @app.post path decorator is mainly for OpenAPI docs & local testing.
+@app.post("/") # Use the expected final path
+async def handler( # Changed function name to handler (common practice, though not required by Vercel)
     request: GenerateMealPlanRequest,
     supabase: Client = Depends(get_supabase_client)
 ):
@@ -149,7 +130,7 @@ async def generate_meal_plan(
 
     # 1. Fetch user profile data from Supabase
     try:
-        profile_response = supabase.table('profiles').select("*").eq('id', user_id).single().execute()
+        profile_response = supabase.table('profiles').select("*, additional_constraints").eq('id', user_id).single().execute()
         if not profile_response.data:
             print(f"Profile not found for user_id: {user_id}")
             raise HTTPException(status_code=404, detail="User profile not found.")
@@ -170,20 +151,36 @@ async def generate_meal_plan(
         print(f"Calling Gemini model: {GEMINI_MODEL_NAME}")
         model = genai.GenerativeModel(GEMINI_MODEL_NAME)
         response = model.generate_content(prompt)
-        raw_response_text = response.text
+        
+        # Check for blocked response due to safety or other issues
+        if not response.parts:
+            print("ERROR: Gemini response potentially blocked or empty.")
+            try:
+                # Attempt to access prompt_feedback, might raise if response is truly empty
+                 print(f"Prompt Feedback: {response.prompt_feedback}")
+                 # Raise based on feedback if available
+                 raise HTTPException(status_code=500, detail=f"Meal plan generation blocked. Feedback: {response.prompt_feedback}")
+            except ValueError:
+                 # Handle cases where prompt_feedback itself is inaccessible 
+                 print("ERROR: Could not access prompt_feedback. Response might be malformed.")
+                 raise HTTPException(status_code=500, detail="Meal plan generation failed: Empty or invalid response from AI.")
+
+        raw_response_text = response.text # Will raise if parts is empty, now checked above
         print("\n--- Raw Gemini Response ---")
         print(raw_response_text)
         print("---------------------------\n")
     except Exception as e:
         print(f"Error calling Gemini API: {e}")
-        raise HTTPException(status_code=500, detail=f"Gemini API request failed: {e}")
+        # Improved error message for potential specific Gemini exceptions
+        raise HTTPException(status_code=500, detail=f"Gemini API request failed: {type(e).__name__} - {e}")
 
     # 4. Parse and Validate JSON response
     validated_plan: WeeklyMealPlan | None = None
+    json_string_to_parse = ""
     try:
         cleaned_response_text = raw_response_text.strip()
         if not cleaned_response_text:
-            raise json.JSONDecodeError("Received empty response", "", 0)
+            raise json.JSONDecodeError("Received empty response after cleaning", "", 0)
         if cleaned_response_text.startswith('\ufeff'):
             cleaned_response_text = cleaned_response_text.lstrip('\ufeff')
 
@@ -219,15 +216,11 @@ async def generate_meal_plan(
     # 5. Format data and save to Supabase
     try:
         print(f"Formatting and upserting meal plan for user_id: {user_id}")
-
-        # --- START: Restructure data for the user's schema ---
         upsert_data = {
             'user_id': user_id,
-            'start_date': date.today().isoformat(), # Use today's date as the start day
+            'start_date': date.today().isoformat(),
             'updated_at': 'now()'
         }
-
-        # Map day names to column names and add the JSON for each day
         day_to_column_map = {
             "monday": "monday_meals",
             "tuesday": "tuesday_meals",
@@ -237,27 +230,19 @@ async def generate_meal_plan(
             "saturday": "saturday_meals",
             "sunday": "sunday_meals",
         }
-
         for daily_plan in validated_plan.plan:
-            # Ensure the day name from Gemini is lowercase for reliable mapping
             day_name_lower = daily_plan.day_of_week.lower()
             column_name = day_to_column_map.get(day_name_lower)
-
             if column_name:
-                # Store the Pydantic model's dict representation as JSON
                 upsert_data[column_name] = daily_plan.dict(by_alias=True)
             else:
                 print(f"Warning: Unknown day '{daily_plan.day_of_week}' received from Gemini. Skipping.")
-
-        # Check if we successfully mapped all days (optional but good)
-        if len(upsert_data) < 9: # user_id, start_day, updated_at + 7 days = 10 expected keys if all mapped
+        if len(upsert_data) < 9:
              print(f"Warning: Not all days were mapped. Upsert data keys: {list(upsert_data.keys())}")
-        # --- END: Restructure data --- 
-
+        
         print("DEBUG: Final upsert data structure:", upsert_data)
         response = supabase.table('user_weekly_meal_plan').upsert(upsert_data).execute()
         print(f"Successfully upserted meal plan for user_id: {user_id}")
-        # Optionally check response for errors if needed
 
     except Exception as e:
         print(f"Error upserting meal plan for {user_id}: {e}")
@@ -267,8 +252,7 @@ async def generate_meal_plan(
 
 # --- Health Check Endpoint (Optional) ---
 @app.get("/")
-def read_root():
+def health_check():
     return {"status": "Meal Plan Generator API is running"}
 
-# --- Run Locally (for testing) ---
-# Use: uvicorn main:app --reload 
+# Note: No uvicorn runner needed for Vercel 

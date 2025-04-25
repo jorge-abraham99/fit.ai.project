@@ -2,5 +2,4 @@ fastapi
 uvicorn[standard]
 pydantic
 supabase
-google-generativeai
-# python-dotenv # Removed as it's not needed for Vercel deployment 
+google-generativeai 

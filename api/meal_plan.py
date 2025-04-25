@@ -45,7 +45,7 @@ app = FastAPI(
 # --- CORS Configuration ---
 origins = [
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    "http://10.82.78.182:3000",
     "https://fit-ai-project.vercel.app",
 ]
 app.add_middleware(
@@ -80,7 +80,7 @@ def configure_google_ai():
         print(f"Error configuring Google AI: {e}")
         raise HTTPException(status_code=500, detail="Could not configure Google AI.")
 
-configure_google_ai() # Configure on startup
+#configure_google_ai() # Configure on startup
 
 # --- Helper Functions ---
 def format_prompt(profile_data: Dict[str, Any]) -> str:
@@ -254,5 +254,3 @@ async def handler( # Changed function name to handler (common practice, though n
 @app.get("/")
 def health_check():
     return {"status": "Meal Plan Generator API is running"}
-
-# Note: No uvicorn runner needed for Vercel 

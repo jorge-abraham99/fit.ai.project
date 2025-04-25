@@ -128,6 +128,12 @@ def format_prompt(profile_data: Dict[str, Any]) -> str:
         f"Dietary Preferences: {', '.join(profile_data.get('dietary_preferences', ['None']))}\n"
         f"Allergies: {', '.join(profile_data.get('allergies', ['None']))}\n"
     )
+    
+    # Check if the 'additional_constraints' field exists and has a value (it's already a string)
+    additional_constraints_text = profile_data.get('additional_constraints')
+    if additional_constraints_text:
+        # Append the string directly to the details
+        details += f"Additional Constraints: {additional_constraints_text}\n"
 
     return base_prompt + details
 

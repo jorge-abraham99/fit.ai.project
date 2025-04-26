@@ -124,7 +124,7 @@ export default function DashboardPage() {
         if (data) {
           console.log("Fetched meal plan data:", data);
           setMealPlanData(data as SupabaseMealPlanRow);
-        } else {
+            } else {
           console.log("No meal plan found for this user.");
           setMealPlanData(null); // Explicitly set to null if no data
         }

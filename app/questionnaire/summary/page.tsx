@@ -147,17 +147,15 @@ export default function SummaryPage() {
       }
       // --- END: Save Additional Constraints --- 
 
-      // --- START CHANGE: Use relative path for API call --- 
-      // const apiUrl = process.env.NEXT_PUBLIC_MEAL_PLAN_API_URL;
-      // if (!apiUrl) {
-      //   throw new Error("Meal plan generator API URL is not configured.");
-      // }
-      const apiPath = '/api-python/'; // Use relative path for Vercel Serverless Function
+      // 2. Get API URL from environment
+      const apiUrl = process.env.NEXT_PUBLIC_MEAL_PLAN_API_URL;
+      if (!apiUrl) {
+        throw new Error("Meal plan generator API URL is not configured.");
+      }
 
-      // Call the API endpoint using the relative path
-      console.log(`Calling API: ${apiPath} for user: ${user.id}`);
-      const response = await fetch(apiPath, { // Use apiPath here
-      // --- END CHANGE --- 
+      // 3. Call the FastAPI endpoint
+      console.log(`Calling API: ${apiUrl}/generate-meal-plan for user: ${user.id}`);
+      const response = await fetch(`${apiUrl}/generate-meal-plan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -307,16 +305,16 @@ export default function SummaryPage() {
           </CardHeader>
           
           <CardContent className="mt-8 space-y-6">
-             <div>
+                <div>
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-semibold">Key Constraints & Preferences</h3>
                     {!showAddConstraint && (
                         <Button variant="outline" size="sm" onClick={() => setShowAddConstraint(true)}>
                             <Plus className="mr-2 h-4 w-4" /> Add Other Constraint
-                        </Button>
-                    )}
+                      </Button>
+                  )}
                 </div>
-                
+
                 <div className="space-y-3">
                     {displayConstraints.map((constraint, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-md border">
@@ -325,49 +323,49 @@ export default function SummaryPage() {
                             {index === displayConstraints.length - 1 && index >= initialConstraintCount && (
                                 <Button variant="ghost" size="icon" onClick={removeLastConstraint} className="text-red-500 hover:text-red-700">
                                     <Trash2 className="h-4 w-4" />
-                                </Button>
-                            )}
-                        </div>
+                      </Button>
+                  )}
+                </div>
                     ))}
                     
                     {/* Input for adding new constraint */}
                     {showAddConstraint && (
                         <div className="flex items-center gap-2 mt-2 p-3 bg-gray-50 rounded-md border border-dashed">
-                            <Input
+                      <Input
                                 placeholder="Enter any other constraint or note..."
                                 value={newConstraintText}
                                 onChange={(e) => setNewConstraintText(e.target.value)}
                                 className="text-lg h-12 flex-1"
                             />
                             <Button size="icon" onClick={saveNewConstraint} disabled={!newConstraintText.trim()}>
-                                <Save className="h-5 w-5" />
-                            </Button>
+                        <Save className="h-5 w-5" />
+                      </Button>
                             <Button size="icon" variant="ghost" onClick={() => {setShowAddConstraint(false); setNewConstraintText("");}}>
                                 <X className="h-5 w-5" />
                             </Button>
-                        </div>
-                    )}
-                </div>
-             </div>
-             
-             <div className="pt-6 border-t mt-8">
-               <div className="text-center mb-6">
+                    </div>
+                  )}
+              </div>
+            </div>
+
+            <div className="pt-6 border-t mt-8">
+              <div className="text-center mb-6">
                  <p className="text-md text-gray-600">
                    Based on your inputs, we'll generate a personalized meal plan.
-                 </p>
-               </div>
+                </p>
+              </div>
                
                {generateError && (
                  <div className="mb-4 text-center text-red-600 font-medium">
                    Error generating meal plan: {generateError}
                  </div>
                )}
-               
-               <div className="flex justify-center">
-                 <Button 
-                   size="lg" 
-                   className="bg-teal-600 hover:bg-teal-700 text-lg py-6 px-8"
-                   onClick={handleCreateMealPlan}
+              
+              <div className="flex justify-center">
+                <Button 
+                  size="lg" 
+                  className="bg-teal-600 hover:bg-teal-700 text-lg py-6 px-8"
+                  onClick={handleCreateMealPlan}
                    disabled={isGenerating}
                  >
                    {isGenerating ? (
@@ -378,12 +376,12 @@ export default function SummaryPage() {
                    ) : (
                      <>
                        Generate My Meal Plan
-                       <Utensils className="ml-2 h-5 w-5" />
+                  <Utensils className="ml-2 h-5 w-5" />
                      </>
                    )}
-                 </Button>
-               </div>
-             </div>
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </main>

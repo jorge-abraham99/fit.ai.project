@@ -1,13 +1,11 @@
 {
     "version": 2,
     "builds": [
-      {
-        "src": "package.json",   
-        "use": "@vercel/next"
-      },
-      {
-        "src": "api/**/*.py",
-        "use": "@vercel/python"
-      }
+      { "src": "package.json", "use": "@vercel/next" },
+      { "src": "api/meal_plan.py", "use": "@vercel/python" }
+    ],
+    "routes": [
+      { "src": "/api/meal-plan(.*)", "dest": "/api/meal_plan.py" },
+      { "src": "/(.*)", "dest": "/$1" }
     ]
   }

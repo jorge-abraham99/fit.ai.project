@@ -254,3 +254,8 @@ async def handler( # Changed function name to handler (common practice, though n
 @app.get("/")
 def health_check():
     return {"status": "Meal Plan Generator API is running"}
+
+from mangum import Mangum
+
+# Add this at the end of the file
+handler = Mangum(app)

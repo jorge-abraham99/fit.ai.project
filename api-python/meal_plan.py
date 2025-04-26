@@ -119,7 +119,7 @@ def format_prompt(profile_data: Dict[str, Any]) -> str:
 # Vercel maps requests to /api/meal_plan to this file.
 # The function name doesn't matter to Vercel, but the file name does.
 # The @app.post path decorator is mainly for OpenAPI docs & local testing.
-@app.post("/") # Use the expected final path
+@app.post("/meal_plan") # Use the expected final path
 async def handler( # Changed function name to handler (common practice, though not required by Vercel)
     request: GenerateMealPlanRequest,
     supabase: Client = Depends(get_supabase_client)
@@ -251,11 +251,6 @@ async def handler( # Changed function name to handler (common practice, though n
     return {"message": "Meal plan generated and saved successfully.", "user_id": user_id}
 
 # --- Health Check Endpoint (Optional) ---
-@app.get("/")
+@app.get("/meal_plan")
 def health_check():
     return {"status": "Meal Plan Generator API is running"}
-
-from mangum import Mangum
-
-# Add this at the end of the file
-handler = Mangum(app)

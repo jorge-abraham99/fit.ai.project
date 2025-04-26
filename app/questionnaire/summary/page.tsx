@@ -152,7 +152,7 @@ export default function SummaryPage() {
       // if (!apiUrl) {
       //   throw new Error("Meal plan generator API URL is not configured.");
       // }
-      const apiPath = '/api/meal_plan'; // Use relative path for Vercel Serverless Function
+      const apiPath = '/api-python/'; // Use relative path for Vercel Serverless Function
 
       // Call the API endpoint using the relative path
       console.log(`Calling API: ${apiPath} for user: ${user.id}`);

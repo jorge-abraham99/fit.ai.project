@@ -8,6 +8,8 @@ from supabase import create_client, Client
 import google.generativeai as genai
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=".env.local")
 
 # --- Configuration --- Rely on Vercel Environment Variables ---
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
@@ -36,7 +38,7 @@ class WeeklyMealPlan(BaseModel):
 # --- FastAPI App ---
 app = FastAPI(
     title="Meal Plan Generator API",
-    description="Generates a meal plan using Gemini based on user profile data from Supabase.",
+    description="Generates a meal plan using Gemini based on user profile data from Supabase."
     # Disable docs in production if desired
     # docs_url=None, 
     # redoc_url=None 
@@ -44,9 +46,8 @@ app = FastAPI(
 
 # --- CORS Configuration ---
 origins = [
+    "http://127.0.0.1:8000",
     "http://localhost:3000",
-    "http://10.82.78.182:3000",
-    "https://fit-ai-project.vercel.app",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -119,7 +120,7 @@ def format_prompt(profile_data: Dict[str, Any]) -> str:
 # Vercel maps requests to /api/meal_plan to this file.
 # The function name doesn't matter to Vercel, but the file name does.
 # The @app.post path decorator is mainly for OpenAPI docs & local testing.
-@app.post("/meal_plan") # Use the expected final path
+@app.post("/api/meal_plan") # Use the expected final path
 async def handler( # Changed function name to handler (common practice, though not required by Vercel)
     request: GenerateMealPlanRequest,
     supabase: Client = Depends(get_supabase_client)
@@ -251,6 +252,6 @@ async def handler( # Changed function name to handler (common practice, though n
     return {"message": "Meal plan generated and saved successfully.", "user_id": user_id}
 
 # --- Health Check Endpoint (Optional) ---
-@app.get("/meal_plan")
+@app.get("/api/meal_plan")
 def health_check():
     return {"status": "Meal Plan Generator API is running"}

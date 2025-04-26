@@ -145,17 +145,12 @@ export default function SummaryPage() {
          // Could add an update here to set it to null if needed, but upsert might handle?
          // For simplicity, we only update if new constraints are present.
       }
-      // --- END: Save Additional Constraints --- 
-
-      // 2. Get API URL from environment
-      const apiUrl = process.env.NEXT_PUBLIC_MEAL_PLAN_API_URL;
-      if (!apiUrl) {
-        throw new Error("Meal plan generator API URL is not configured.");
-      }
-
-      // 3. Call the FastAPI endpoint
-      console.log(`Calling API: ${apiUrl}/generate-meal-plan for user: ${user.id}`);
-      const response = await fetch(`${apiUrl}/generate-meal-plan`, {
+  
+      const apiPath = '/api/meal_plan'; // Use relative path for Vercel Serverless Function
+      // Call the API endpoint using the relative path
+      console.log(`Calling API: ${apiPath} for user: ${user.id}`);
+      const response = await fetch(apiPath, { // Use apiPath here
+      // --- END CHANGE --- 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -146,11 +146,12 @@ export default function SummaryPage() {
          // For simplicity, we only update if new constraints are present.
       }
   
-      const apiPath = '/api/meal_plan'; // Use relative path for Vercel Serverless Function
-      // Call the API endpoint using the relative path
-      console.log(`Calling API: ${apiPath} for user: ${user.id}`);
-      const response = await fetch(apiPath, { // Use apiPath here
-      // --- END CHANGE --- 
+      // Set the base URL depending on the environment
+      const baseUrl = process.env.NODE_ENV === 'development'
+        ? 'http://localhost:3000/api/meal_plan'
+        : 'https://fit-ai-project.vercel.app/api/meal_plan';
+      console.log(`Calling API: ${baseUrl} for user: ${user.id}`);
+      const response = await fetch(baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

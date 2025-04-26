@@ -28,7 +28,9 @@ const nextConfig = {
     parallelServerCompiles: true,
   },
   async rewrites() {
+    console.log(`>>> Current NODE_ENV: ${process.env.NODE_ENV}`); // Add this log
     if (process.env.NODE_ENV === 'development') {
+      console.log(">>> Applying development rewrites..."); // Add this log
       return [
         {
           source: '/api/:path*',
@@ -36,6 +38,7 @@ const nextConfig = {
         },
       ];
     }
+    console.log(">>> NOT applying development rewrites."); // Add this log
     return [];
   },
 }

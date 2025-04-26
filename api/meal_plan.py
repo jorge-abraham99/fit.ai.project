@@ -121,7 +121,7 @@ def format_prompt(profile_data: Dict[str, Any]) -> str:
 # The function name doesn't matter to Vercel, but the file name does.
 # The @app.post path decorator is mainly for OpenAPI docs & local testing.
 @app.post("/api/meal_plan") # Use the expected final path
-async def handler( # Changed function name to handler (common practice, though not required by Vercel)
+async def generate_meal_plan(
     request: GenerateMealPlanRequest,
     supabase: Client = Depends(get_supabase_client)
 ):
@@ -253,5 +253,5 @@ async def handler( # Changed function name to handler (common practice, though n
 
 # --- Health Check Endpoint (Optional) ---
 @app.get("/api/meal_plan")
-def health_check():
+def meal_plan_health_check():
     return {"status": "Meal Plan Generator API is running"}

@@ -146,7 +146,7 @@ export default function SummaryPage() {
          // For simplicity, we only update if new constraints are present.
       }
   
-      // Set the base URL depending on the environment
+      // Set the base URL depending on the environmentls
       const baseUrl = process.env.NODE_ENV === 'development'
         ? 'http://localhost:3000/api/meal_plan'
         : 'https://fit-ai-project.vercel.app/api/meal_plan';

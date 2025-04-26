@@ -8,8 +8,8 @@ from supabase import create_client, Client
 import google.generativeai as genai
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import date
-from dotenv import load_dotenv
-load_dotenv(dotenv_path=".env.local")
+# from dotenv import load_dotenv
+# load_dotenv(dotenv_path=".env.local")
 
 # --- Configuration --- Rely on Vercel Environment Variables ---
 SUPABASE_URL = os.environ.get("NEXT_PUBLIC_SUPABASE_URL")

@@ -275,18 +275,43 @@ export default function DashboardPage() {
             </Button>
             <h1 className="text-2xl font-bold ml-4 text-teal-600">Your Meal Plan Dashboard</h1>
           </div>
-          
-          {/* Commented out Shopping List Button for now */}
-          {/* <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
             <Button 
               variant="outline" 
               className="flex items-center gap-2"
-              onClick={() => setShowShoppingList(true)} // Assuming setShowShoppingList state existed
+              onClick={async () => {
+                setIsLoading(true);
+                try {
+                  // 1. Get User ID
+                  const { data: { user }, error: userError } = await supabase.auth.getUser();
+                  if (userError || !user) {
+                    throw new Error(userError?.message || "User not logged in.");
+                  }
+                  // 2. Call the ingredients API
+                  const apiUrl = process.env.NODE_ENV === 'development'
+                    ? `http://127.0.0.1:8001/api/ingredients/${user.id}/list`
+                    : `https://fit-ai-project.vercel.app/api/ingredients/${user.id}/list`;
+                  const resp = await fetch(apiUrl);
+                  if (!resp.ok) {
+                    throw new Error("Failed to fetch shopping list");
+                  }
+                  const ingredients = await resp.json();
+                  // 3. Store in localStorage (or pass via router)
+                  localStorage.setItem('shoppingList', JSON.stringify(ingredients));
+                  // 4. Redirect
+                  router.push("/shopping-list");
+                } catch (e) {
+                  alert("Could not generate shopping list: " + (e as Error).message);
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={isLoading}
             >
-              <ShoppingCart className="h-5 w-5" />
+              {/* <ShoppingCart className="h-5 w-5" /> */}
               Shopping List
             </Button>
-          </div> */}
+          </div>
         </div>
       </header>
 
